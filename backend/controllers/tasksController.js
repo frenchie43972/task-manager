@@ -6,7 +6,7 @@ import { error } from 'console';
   Returns all notes from the database
 */
 export function getAllTasks(req, res) {
-  const sql = `SELECT id, title, details FROM tasks`;
+  const sql = `SELECT id, title, priority, details, created_date, updated_date FROM tasks`;
 
   db.all(sql, [], (err, rows) => {
     if (err) {
@@ -25,7 +25,7 @@ export function getAllTasks(req, res) {
 export function getTaskById(req, res) {
   const { id } = req.params;
 
-  const sql = `SELECT id, title, details, created_date, updated_date FROM tasks WHERE id = ?`;
+  const sql = `SELECT id, title, priority, details, created_date, updated_date FROM tasks WHERE id = ?`;
 
   db.get(sql, [id], (err, row) => {
     if (err) {
@@ -47,17 +47,19 @@ export function getTaskById(req, res) {
   Creates a task after input validation
 */
 export function createTask(req, res) {
-  const { title, details } = req.body;
+  const { title, priority, details } = req.body;
 
-  if (!title || !details) {
-    res.status(400).json({ error: 'title and details are required' });
+  if (!title || !priority || !details) {
+    res
+      .status(400)
+      .json({ error: 'title, priority, and details are required' });
 
     return;
   }
 
-  const sql = `INSERT INTO tasks (title, details) VALUES (?, ?)`;
+  const sql = `INSERT INTO tasks (title, priority, details) VALUES (?, ?, ?)`;
 
-  db.run(sql, [title, details], function (err) {
+  db.run(sql, [title, priority, details], function (err) {
     if (err) {
       res.status(500).json({ error: 'Failed to create task' });
 
@@ -67,6 +69,7 @@ export function createTask(req, res) {
     res.status(201).json({
       id: this.lastID,
       title,
+      priority,
       details,
     });
   });
@@ -104,15 +107,15 @@ export function deleteTask(req, res) {
 */
 export function updateTask(req, res) {
   const { id } = req.params;
-  const { title, details } = req.body;
+  const { title, priority, details } = req.body;
 
   const sql = `
       UPDATE tasks
-      SET title = ?, details = ?, updated_date = CURRENT_TIMESTAMP
+      SET title = ?, details = ?, priority = ?, updated_date = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 
-  db.run(sql, [title, details, id], function (err) {
+  db.run(sql, [title, priority, details, id], function (err) {
     if (err) {
       res.status(500).json({ error: 'Failed to update task' });
 
