@@ -35,17 +35,29 @@ export const useTaskStore = defineStore('tasks', {
     async createTask(title, priority, details) {
       const res = await fetch(`${API_BASE_URL}/tasks`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({title, priority, details}),
-      });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, priority, details }),
+      })
 
       if (!res.ok) {
-        throw new Error('Failed to create task');
+        throw new Error('Failed to create task')
       }
 
-      const newTask = await res.json();
+      const newTask = await res.json()
 
-      this.tasks.push(newTask);
+      this.tasks.push(newTask)
+    },
+
+    async deleteTask(id) {
+      const res = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to delete task.')
+      }
+
+      this.tasks = this.tasks.filter((task) => task.id !== id)
     },
   },
-});
+})
