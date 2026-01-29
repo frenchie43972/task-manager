@@ -1,5 +1,5 @@
-import db from '../db/database.js';
-import { error } from 'console';
+import db from "../db/database.js";
+import { error } from "console";
 
 /*
   GET /tasks
@@ -10,7 +10,7 @@ export function getAllTasks(req, res) {
 
   db.all(sql, [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: 'Failed to fetch tasks' });
+      res.status(500).json({ error: "Failed to fetch tasks" });
 
       return;
     }
@@ -29,12 +29,12 @@ export function getTaskById(req, res) {
 
   db.get(sql, [id], (err, row) => {
     if (err) {
-      res.status(500).json({ error: 'Failed to fetch task(s)' });
+      res.status(500).json({ error: "Failed to fetch task(s)" });
 
       return;
     }
     if (!row) {
-      res.status(404).json({ error: 'Task not found' });
+      res.status(404).json({ error: "Task not found" });
 
       return;
     }
@@ -49,19 +49,21 @@ export function getTaskById(req, res) {
 export function createTask(req, res) {
   const { title, priority, details } = req.body;
 
-  if (!title || !priority || !details) {
+  const safeDetails = details || null;
+
+  if (!title || !priority) {
     res
       .status(400)
-      .json({ error: 'title, priority, and details are required' });
+      .json({ error: "title, priority, and details are required" });
 
     return;
   }
 
   const sql = `INSERT INTO tasks (title, priority, details) VALUES (?, ?, ?)`;
 
-  db.run(sql, [title, priority, details], function (err) {
+  db.run(sql, [title, priority, safeDetails], function (err) {
     if (err) {
-      res.status(500).json({ error: 'Failed to create task' });
+      res.status(500).json({ error: "Failed to create task" });
 
       return;
     }
@@ -86,13 +88,13 @@ export function deleteTask(req, res) {
 
   db.run(sql, [id], function (err) {
     if (err) {
-      res.status(500).json({ error: 'Failed to delete task' });
+      res.status(500).json({ error: "Failed to delete task" });
 
       return;
     }
 
     if (this.changes === 0) {
-      res.status(404).json({ error: 'Task noty found' });
+      res.status(404).json({ error: "Task noty found" });
 
       return;
     }
@@ -111,19 +113,19 @@ export function updateTask(req, res) {
 
   const sql = `
       UPDATE tasks
-      SET title = ?, details = ?, priority = ?, updated_date = CURRENT_TIMESTAMP
+      SET title = ?, priority = ?, details = ? updated_date = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 
   db.run(sql, [title, priority, details, id], function (err) {
     if (err) {
-      res.status(500).json({ error: 'Failed to update task' });
+      res.status(500).json({ error: "Failed to update task" });
 
       return;
     }
 
     if (this.changes === 0) {
-      res.status(404).json({ error: 'Task not found' });
+      res.status(404).json({ error: "Task not found" });
 
       return;
     }
