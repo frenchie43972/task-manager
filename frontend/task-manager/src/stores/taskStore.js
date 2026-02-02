@@ -59,5 +59,25 @@ export const useTaskStore = defineStore('tasks', {
 
       this.tasks = this.tasks.filter((task) => task.id !== id)
     },
+
+    async updateTask(id, title, priority, details) {
+      const res = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, priority, details }),
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to update task.')
+      }
+
+      const updatedTask = await res.json()
+
+      const index = this.tasks.findIndex((task) => task.id === id)
+
+      if (index !== -1) {
+        this.tasks[index] = updatedTask
+      }
+    },
   },
 })
