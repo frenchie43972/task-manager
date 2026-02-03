@@ -1,18 +1,29 @@
-import db from '../db/database.js';
-import { error } from 'console';
+import db from "../db/database.js";
 
 /*
   GET /tasks
   Returns all notes from the database
 */
 export function getAllTasks(req, res) {
-  const sql = `SELECT id, title, priority, details, created_date, updated_date FROM tasks`;
+  // Parse pagination parameters from the query string
+  const limit = Number(req.query.limit) || 20;
+  const offset = Number(req.query.offset) || 0;
 
-  db.all(sql, [], (err, rows) => {
+  const sql = `
+  SELECT 
+    id, 
+    title, 
+    priority, 
+    details, 
+    created_date, 
+    updated_date 
+  FROM tasks
+  ORDER BY created_date 
+  `;
+
+  db.all(sql, [limit, offset], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: 'Failed to fetch tasks' });
-
-      return;
+      return res.status(500).json({ error: "Failed to fetch tasks" });
     }
     res.json(rows);
   });
@@ -29,14 +40,10 @@ export function getTaskById(req, res) {
 
   db.get(sql, [id], (err, row) => {
     if (err) {
-      res.status(500).json({ error: 'Failed to fetch task(s)' });
-
-      return;
+      return res.status(500).json({ error: "Failed to fetch task(s)" });
     }
     if (!row) {
-      res.status(404).json({ error: 'Task not found' });
-
-      return;
+      return res.status(404).json({ error: "Task not found" });
     }
     res.json(row);
   });
@@ -49,30 +56,27 @@ export function getTaskById(req, res) {
 export function createTask(req, res) {
   const { title, priority, details } = req.body;
 
-  const safeDetails = details || null;
+  const safeDetails = details || "";
 
   if (!title || !priority) {
-    res
+    return res
       .status(400)
-      .json({ error: 'title, priority, and details are required' });
-
-    return;
+      .json({ error: "title, priority, and details are required" });
   }
 
   const sql = `INSERT INTO tasks (title, priority, details) VALUES (?, ?, ?)`;
 
   db.run(sql, [title, priority, safeDetails], function (err) {
     if (err) {
-      res.status(500).json({ error: 'Failed to create task' });
-
-      return;
+      return res.status(500).json({ error: err.message });
     }
 
-    res.status(201).json({
-      id: this.lastID,
-      title,
-      priority,
-      details,
+    db.get("SELECT * FROM tasks WHERE id = ?", [this.lastID], (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      res.status(201).json(row);
     });
   });
 }
@@ -88,15 +92,11 @@ export function deleteTask(req, res) {
 
   db.run(sql, [id], function (err) {
     if (err) {
-      res.status(500).json({ error: 'Failed to delete task' });
-
-      return;
+      return res.status(500).json({ error: "Failed to delete task" });
     }
 
     if (this.changes === 0) {
-      res.status(404).json({ error: 'Task noty found' });
-
-      return;
+      return res.status(404).json({ error: "Task noty found" });
     }
 
     res.status(204).send();
@@ -112,11 +112,10 @@ export function updateTask(req, res) {
   const { title, priority, details } = req.body;
 
   if (!title || !priority) {
-    res.status(400).json({ error: 'title and priority are required' });
-    return;
+    return res.status(400).json({ error: "title and priority are required" });
   }
 
-  const safeDetails = details ?? null;
+  const safeDetails = details ?? "";
 
   const sql = `
       UPDATE tasks
@@ -124,23 +123,21 @@ export function updateTask(req, res) {
       WHERE id = ?
     `;
 
-  db.run(sql, [title, priority, details, id], function (err) {
+  db.run(sql, [title, priority, safeDetails, id], function (err) {
     if (err) {
-      res.status(500).json({ error: 'Failed to update task' });
-
-      return;
+      return res.status(500).json({ error: err.message });
     }
 
     if (this.changes === 0) {
-      res.status(404).json({ error: 'Task not found' });
-
-      return;
+      return res.status(404).json({ error: "Task not found" });
     }
 
-    res.status(200).json({
-      id: Number(id),
-      title,
-      details: safeDetails,
+    db.get(`SELECT * FROM tasks WHERE id = ?`, [id], (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      res.json(row);
     });
   });
 }
