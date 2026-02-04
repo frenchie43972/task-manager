@@ -1,143 +1,129 @@
-import db from "../db/database.js";
+import db from '../db/database.js';
+import {
+  getAllTasks as getAllTasksQuery,
+  getTaskById as getTaskByIdQuery,
+  createTask as createTaskQuery,
+  deleteTaskById as deleteTaskByIdQuery,
+  updateTaskById as updateTaskByIdQuery,
+} from '../db/tasks.queries.js';
 
-/*
-  GET /tasks
-  Returns all notes from the database
-*/
-export function getAllTasks(req, res) {
-  // Parse pagination parameters from the query string
-  const limit = Number(req.query.limit) || 20;
-  const offset = Number(req.query.offset) || 0;
+export const getAllTasks = async (req, res) => {
+  // Read query params from the URL: /tasks?limit=10&offset=0
+  // These arrive as strings, so we must convert them to numbers.
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const offset = parseInt(req.query.offset, 10) || 0;
 
-  const sql = `
-  SELECT 
-    id, 
-    title, 
-    priority, 
-    details, 
-    created_date, 
-    updated_date 
-  FROM tasks
-  ORDER BY created_date 
-  `;
+  try {
+    // The controller no longer cares HOW tasks are fetched,
+    // only that it receives an array of tasks.
+    const tasks = await getAllTasksQuery(limit, offset);
 
-  db.all(sql, [limit, offset], (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to fetch tasks" });
-    }
-    res.json(rows);
-  });
-}
+    res.json(tasks);
+  } catch (err) {
+    // HTTP-level error handling stays here
+    res.status(500).json({ error: err.message });
+  }
+};
 
-/*
-  GET tasks/:id
-  Returns one or more note by id
-*/
-export function getTaskById(req, res) {
-  const { id } = req.params;
+export const getTaskById = async (req, res) => {
+  const id = Number(req.params.id);
 
-  const sql = `SELECT id, title, priority, details, created_date, updated_date FROM tasks WHERE id = ?`;
-
-  db.get(sql, [id], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: "Failed to fetch task(s)" });
-    }
-    if (!row) {
-      return res.status(404).json({ error: "Task not found" });
-    }
-    res.json(row);
-  });
-}
-
-/*
-  POST /tasks
-  Creates a task after input validation
-*/
-export function createTask(req, res) {
-  const { title, priority, details } = req.body;
-
-  const safeDetails = details || "";
-
-  if (!title || !priority) {
-    return res
-      .status(400)
-      .json({ error: "title, priority, and details are required" });
+  // Guards early against invalid input
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid task ID' });
   }
 
-  const sql = `INSERT INTO tasks (title, priority, details) VALUES (?, ?, ?)`;
+  try {
+    const task = await getTaskByIdQuery(id);
 
-  db.run(sql, [title, priority, safeDetails], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
+    // if db.get() returns undefined, throw this error
+    if (!task) {
+      return res.status(404).json({ error: 'Task not found' });
     }
+    res.json(task);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    db.get("SELECT * FROM tasks WHERE id = ?", [this.lastID], (err, row) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
+export const createTask = async (req, res) => {
+  const { title, priority, details } = req.body;
 
-      res.status(201).json(row);
+  // These two checks define what is REQUIRED at the HTTP boundary
+  if (!title || !priority) {
+    return res.status(400).json({ error: 'Title and priority are required' });
+  }
+
+  try {
+    const result = await createTaskQuery({
+      title,
+      priority,
+      details: details || '',
     });
-  });
-}
 
-/*
-  DELETE /tasks/:id
-  Deletes a task by its id
-*/
-export function deleteTask(req, res) {
-  const { id } = req.params;
+    /*
+      I now know explicitly what is returning:
+      - The ID of the newly created task
+      - Not a random side effect of SQLite
+    */
+    res.status(201).json({
+      id: result.id,
+      title,
+      priority,
+      details: details || '',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-  const sql = `DELETE FROM tasks WHERE id = ?`;
+export const deleteTask = async (req, res) => {
+  const id = Number(req.params.id);
 
-  db.run(sql, [id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: "Failed to delete task" });
-    }
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid task ID' });
+  }
 
-    if (this.changes === 0) {
-      return res.status(404).json({ error: "Task noty found" });
+  try {
+    const result = await deleteTaskByIdQuery(id);
+
+    // If no rows were deleted, the task did not exist
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Task not found' });
     }
 
     res.status(204).send();
-  });
-}
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-/*
-  PUT /tasks/:id
-  Update an existing task's title, body, and updated_date.
-*/
-export function updateTask(req, res) {
+export const updateTask = async (req, res) => {
   const { id } = req.params;
   const { title, priority, details } = req.body;
 
   if (!title || !priority) {
-    return res.status(400).json({ error: "title and priority are required" });
+    return res.status(400).json({ error: 'Title and priority are required' });
   }
 
-  const safeDetails = details ?? "";
-
-  const sql = `
-      UPDATE tasks
-      SET title = ?, priority = ?, details = ?, updated_date = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `;
-
-  db.run(sql, [title, priority, safeDetails, id], function (err) {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-
-    if (this.changes === 0) {
-      return res.status(404).json({ error: "Task not found" });
-    }
-
-    db.get(`SELECT * FROM tasks WHERE id = ?`, [id], (err, row) => {
-      if (err) {
-        return res.status(500).json({ error: err.message });
-      }
-
-      res.json(row);
+  try {
+    const result = await updateTaskByIdQuery(id, {
+      title,
+      priority,
+      details: details || '',
     });
-  });
-}
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.json({
+      id,
+      title,
+      priority,
+      details: details || '',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
