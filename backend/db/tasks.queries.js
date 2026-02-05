@@ -1,16 +1,16 @@
-import db from './database.js';
+import db from "./database.js";
 
 /*
   This function exists for ONE reason:
   It fetches multiple task rows from the database.
   Because MANY rows are expected, intentionally use db.all().
 */
-export function getAllTasks(limit, offset) {
+export function getAllTasks(limit, offset, search) {
   return new Promise((resolve, reject) => {
     // IMPORTANT CONCEPT:
     // Every ? in the SQL string MUST have a matching value
     // in the params array, in the SAME ORDER.
-    const sql = `
+    let sql = `
       SELECT 
         id, 
         title, 
@@ -19,15 +19,25 @@ export function getAllTasks(limit, offset) {
         created_date, 
         updated_date 
       FROM tasks
-      ORDER BY created_date 
+    `;
+
+    const params = [];
+
+    if (search) {
+      sql += `WHERE title LIKE ? OR details LIKE ?`;
+
+      const pattern = `%${search}%`;
+      params.push(pattern, pattern);
+    }
+
+    sql += `
+      ORDER BY created_date DESC
       LIMIT ? OFFSET ?
     `;
 
-    const params = [limit, offset];
+    params.push(limit, offset);
 
     db.all(sql, params, (err, rows) => {
-      // Database errors should not know about HTTP
-      // reject and let the controller decide how to respond
       if (err) {
         return reject(err);
       }
