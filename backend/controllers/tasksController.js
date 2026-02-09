@@ -1,130 +1,140 @@
-import db from "../db/database.js";
+import db from '../db/database.js';
 import {
-  getAllTasks as getAllTasksQuery,
-  getTaskById as getTaskByIdQuery,
-  createTask as createTaskQuery,
-  deleteTaskById as deleteTaskByIdQuery,
-  updateTaskById as updateTaskByIdQuery,
-} from "../db/tasks.queries.js";
+  getAllTasks,
+  getTaskById,
+  createTask,
+  updateTaskById,
+  deleteTaskById,
+} from '../db/tasks.queries.js';
 
-export const getAllTasks = async (req, res, next) => {
-  // Read query params from the URL: /tasks?limit=10&offset=0
-  // These arrive as strings, so we must convert them to numbers.
-  const limit = parseInt(req.query.limit, 10) || 10;
-  const offset = parseInt(req.query.offset, 10) || 0;
+const MAX_LIMIT = 50;
 
-  const search = req.query.search || "";
+function parseId(raw) {
+  const id = Number(raw);
 
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error('Invalid task ID');
+
+    err.status = 400;
+    throw err;
+  }
+  return id;
+}
+
+function parsePagination(query) {
+  const limit = Math.min(Math.max(Number(query.limit) || 10, 1), MAX_LIMIT);
+
+  const offset = Math.max(Number(query.offset) || 0, 0);
+
+  return { limit, offset };
+}
+
+function parseSearch(query) {
+  if (typeof query.search !== 'string') return '';
+
+  const trimmed = query.search.trim();
+
+  return trimmed === '' ? '' : trimmed;
+}
+
+export async function getAll(req, res, next) {
   try {
-    // The controller no longer cares HOW tasks are fetched,
-    // only that it receives an array of tasks.
-    const tasks = await getAllTasksQuery(limit, offset, search);
+    const { limit, offset } = parsePagination(req.query);
+    const search = parseSearch(req.query);
+
+    const tasks = await getAllTasks(limit, offset, search);
 
     res.json(tasks);
   } catch (err) {
-    // HTTP-level error handling taken care of by the handler response
     next(err);
   }
-};
+}
 
-export const getTaskById = async (req, res, next) => {
-  const id = Number(req.params.id);
-
-  // Guards early against invalid input
-  if (Number.isNaN(id)) {
-    return res.status(400).json({ error: "Invalid task ID" });
-  }
-
+export async function getById(req, res, next) {
   try {
-    const task = await getTaskByIdQuery(id);
+    const id = parseId(req.params.id);
+    const task = await getTaskById(id);
 
-    // if db.get() returns undefined, throw this error
     if (!task) {
-      return res.status(404).json({ error: "Task not found" });
+      return res.status(404).json({ err: 'Task not found.' });
     }
+
     res.json(task);
   } catch (err) {
     next(err);
   }
-};
+}
 
-export const createTask = async (req, res, next) => {
-  const { title, priority, details } = req.body;
-
-  // These two checks define what is REQUIRED at the HTTP boundary
-  if (!title || !priority) {
-    return res.status(400).json({ error: "Title and priority are required" });
-  }
-
+export async function create(req, res, next) {
   try {
-    const result = await createTaskQuery({
-      title,
-      priority,
-      details: details || "",
-    });
+    const { title, priority, details } = req.body;
 
-    /*
-      I now know explicitly what is returning:
-      - The ID of the newly created task
-      - Not a random side effect of SQLite
-    */
+    if (typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    if (!priority) {
+      return res.status(400).json({ error: 'Priority is required' });
+    }
+
+    const payload = {
+      title: title.trim(),
+      priority,
+      details: typeof details === 'string' ? details : '',
+    };
+
+    const result = await createTask(payload);
+
     res.status(201).json({
       id: result.id,
-      title,
-      priority,
-      details: details || "",
+      ...payload,
     });
   } catch (err) {
     next(err);
   }
-};
+}
 
-export const deleteTask = async (req, res, next) => {
-  const id = Number(req.params.id);
-
-  if (Number.isNaN(id)) {
-    return res.status(400).json({ error: "Invalid task ID" });
-  }
-
+export async function remove(req, res, next) {
   try {
-    const result = await deleteTaskByIdQuery(id);
+    const id = parseId(req.params.id);
+    const result = await deleteTaskById(id);
 
-    // If no rows were deleted, the task did not exist
     if (result.changes === 0) {
-      return res.status(404).json({ error: "Task not found" });
+      return res.status(404).json({ error: 'Task not found' });
     }
 
-    res.status(204).send();
+    res.status(204).end();
   } catch (err) {
     next(err);
   }
-};
+}
 
-export const updateTask = async (req, res, next) => {
-  const { id } = req.params;
-  const { title, priority, details } = req.body;
-
-  if (!title || !priority) {
-    return res.status(400).json({ error: "Title and priority are required" });
-  }
-
+export const update = async (req, res, next) => {
   try {
-    const result = await updateTaskByIdQuery(id, {
-      title,
-      priority,
-      details: details || "",
-    });
+    const id = parseId(req.params.id);
+    const { title, priority, details } = req.body;
 
-    if (result.changes === 0) {
-      return res.status(404).json({ error: "Task not found" });
+    if (typeof title !== 'string' || title.trim() === '') {
+      return res.status(400).json({ error: 'Title is required' });
     }
 
-    res.json({
-      id,
-      title,
+    if (!priority) {
+      return res.status(400).json({ error: 'Priority is required' });
+    }
+
+    const payload = {
+      title: title.trim(),
       priority,
-      details: details || "",
-    });
+      details: typeof details === 'string' ? details : '',
+    };
+
+    const result = await updateTaskById(id, payload);
+
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.json({ id, ...payload });
   } catch (err) {
     next(err);
   }
