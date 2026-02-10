@@ -1,15 +1,12 @@
 import db from "./database.js";
 
-/*
-  This function exists for ONE reason:
-  It fetches multiple task rows from the database.
-  Because MANY rows are expected, intentionally use db.all().
-*/
+/**
+ * Fetches a list of tasks with optional search, pagination, and sorting.
+ *
+ * This function returns a Promise so callers can use `await`.
+ */
 export function getAllTasks(limit, offset, search) {
   return new Promise((resolve, reject) => {
-    // IMPORTANT CONCEPT:
-    // Every ? in the SQL string MUST have a matching value
-    // in the params array, in the SAME ORDER.
     let sql = `
       SELECT 
         id, 
@@ -21,12 +18,16 @@ export function getAllTasks(limit, offset, search) {
       FROM tasks
     `;
 
+    // Array of values that will replace the `?` placeholders in SQL
     const params = [];
 
     if (search) {
+      // Add WHERE clause only if a search term is provided
       sql += `WHERE title LIKE ? OR details LIKE ?`;
 
+      // %term% allows partial matches in SQL LIKE
       const pattern = `%${search}%`;
+      // These values map to the two ? placeholders above
       params.push(pattern, pattern);
     }
 
@@ -35,23 +36,31 @@ export function getAllTasks(limit, offset, search) {
       LIMIT ? OFFSET ?
     `;
 
+    // These values replace the LIMIT ? and OFFSET ? placeholders
     params.push(limit, offset);
 
+    /**
+     * db.all executes the query and returns ALL matching rows.
+     *
+     * The callback is async-style:
+     *   - err is non-null if something failed
+     *   - rows is the query result if successful
+     */
     db.all(sql, params, (err, rows) => {
       if (err) {
+        // Rejects the Promise → caller's await throws an error
         return reject(err);
       }
 
+      // Resolves the Promise → caller receives rows
       resolve(rows);
     });
   });
 }
 
-/*
-  Fetch exactly ONE task by its ID.
-  We expect at most one row.
-  That is why db.get() is used instead of db.all().
-*/
+/**
+ * Fetches a single task by ID.
+ */
 export function getTaskById(id) {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -66,40 +75,37 @@ export function getTaskById(id) {
         WHERE id = ?
       `;
 
-    // db.get() returns:
-    // - a single row object if found
-    // - undefined if no row matches
+    // db.get returns a SINGLE row instead of an array
     db.get(sql, [id], (err, row) => {
       if (err) {
         return reject(err);
       }
+      // row will be `undefined` if no task matches the ID
       resolve(row);
     });
   });
 }
 
-/*
-  Insert a new task into the database.
-  This is a WRITE operation, not a read.
-  db.run() is used for commands that change state.
-*/
+/**
+ * Creates a new task.
+ */
 export function createTask({ title, priority, details }) {
   return new Promise((resolve, reject) => {
     const sql = `INSERT INTO tasks (title, priority, details) VALUES (?, ?, ?)`;
-
+    // These values replace the ? placeholders in order
     const params = [title, priority, details];
 
-    /*
-      db.run() does NOT return rows.
-      Instead, SQLite exposes metadata through `this`:
-      - this.lastID   -> the ID of the newly inserted row
-      - this.changes  -> how many rows were affected
-    */
+    /**
+     * db.run is used for INSERT/UPDATE/DELETE queries.
+     *
+     * The callback's `this` is bound to the SQL statement context.
+     */
     db.run(sql, params, function (err) {
       if (err) {
         return reject(err);
       }
 
+      // lastID is the auto-generated primary key from the INSERT
       resolve({
         id: this.lastID,
       });
@@ -107,11 +113,9 @@ export function createTask({ title, priority, details }) {
   });
 }
 
-/*
-  Delete a task by ID.
-  - This changes database state.
-  - db.run() is required.
-*/
+/**
+ * Deletes a task by ID.
+ */
 export function deleteTaskById(id) {
   return new Promise((resolve, reject) => {
     const sql = `DELETE FROM tasks WHERE id = ?`;
@@ -121,11 +125,7 @@ export function deleteTaskById(id) {
         return reject(err);
       }
 
-      /*
-        this.changes tells us how many rows were affected.
-        - 0 means no task matched that ID
-        - 1 means one task was deleted
-      */
+      // changes = number of rows affected (0 or 1 here)
       resolve({
         changes: this.changes,
       });
@@ -133,11 +133,9 @@ export function deleteTaskById(id) {
   });
 }
 
-/*
-  Update an existing task.
-  - This changes state, so db.run() is required.
-  - We rely on this.changes to know if anything was updated.
-*/
+/**
+ * Updates an existing task by ID.
+ */
 export function updateTaskById(id, { title, priority, details }) {
   return new Promise((resolve, reject) => {
     const sql = `
@@ -146,6 +144,7 @@ export function updateTaskById(id, { title, priority, details }) {
       WHERE id = ?
     `;
 
+    // Order matters: values match the ? placeholders top to bottom
     const params = [title, priority, details, id];
 
     db.run(sql, params, function (err) {
@@ -153,11 +152,7 @@ export function updateTaskById(id, { title, priority, details }) {
         return reject(err);
       }
 
-      /*
-        this.changes:
-        - 0 means no task matched the ID
-        - 1 means the task was updated
-      */
+      // changes indicates whether a row was actually updated
       resolve({
         changes: this.changes,
       });
