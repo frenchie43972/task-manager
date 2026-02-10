@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_tasks_created_date ON tasks(created_date);

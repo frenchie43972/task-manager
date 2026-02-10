@@ -3,12 +3,15 @@ import router from "./routes/tasksRouter.js";
 import cors from "cors";
 import db from "./db/database.js";
 
+import { runMigrations } from "./db/migrate.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
 const port = 3000;
 
 const taskRouter = router;
+
+await runMigrations();
 
 app.use(express.json());
 
