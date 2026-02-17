@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import TaskForm from '@/components/TaskForm.vue'
@@ -18,6 +18,12 @@ const task = computed(() => {
   return taskStore.tasks.find((t) => t.id === Number(route.params.id))
 })
 
+onMounted(async () => {
+  if (isEditMode.value && taskStore.tasks.length === 0) {
+    await taskStore.fetchTasks()
+  }
+})
+
 // After saving, return to the home page
 function handleSuccess() {
   router.push({ name: 'tasks' })
@@ -29,7 +35,7 @@ function handleSuccess() {
     <h1 v-if="isEditMode">Edit Task</h1>
     <h1 v-else>Create Task</h1>
 
-    <TaskForm :task="task" :isEdit="isEditMode" @success="handleSuccess" />
+    <TaskForm :task="task" :isEdit="isEditMode" @success="handleSuccess" @cancel="handleSuccess" />
   </div>
 </template>
 
