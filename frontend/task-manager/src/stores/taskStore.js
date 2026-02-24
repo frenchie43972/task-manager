@@ -10,6 +10,11 @@ export const useTaskStore = defineStore('tasks', {
     // UI state that components can react to
     loading: false,
     error: null,
+
+    // Query state
+    search: '',
+    limit: 10,
+    offset: 0,
   }),
 
   actions: {
@@ -25,17 +30,23 @@ export const useTaskStore = defineStore('tasks', {
       this.error = null
 
       try {
-        const res = await fetch(`${API_BASE_URL}/tasks`)
+        const params = new URLSearchParams({
+          search: this.search,
+          limit: this.limit,
+          offset: this.offset,
+        })
+
+        const res = await fetch(`${API_BASE_URL}/tasks?${params}`)
 
         if (!res.ok) {
           throw new Error('Failed to fetch tasks.')
         }
 
         // Backend returns an envelope {data, limit, offset}
-        const json = await res.json()
+        const result = await res.json()
 
         // Stores only the actual task data
-        this.tasks = json.data
+        this.tasks = result.data
       } catch (err) {
         this.error = err.message
       } finally {
