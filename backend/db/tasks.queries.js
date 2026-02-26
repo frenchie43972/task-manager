@@ -7,53 +7,69 @@ import db from "./database.js";
  */
 export function getAllTasks(limit, offset, search) {
   return new Promise((resolve, reject) => {
-    let sql = `
-      SELECT 
+    let whereClause = "";
+
+    // Array of values that will replace the `?` placeholders in SQL
+    let searchParams = [];
+
+    if (search) {
+      // Add WHERE clause only if a search term is provided
+      whereClause = `WHERE title LIKE ? OR details LIKE ?`;
+
+      // %term% allows partial matches in SQL LIKE
+      const pattern = `%${search}%`;
+      // These values map to the two ? placeholders above
+      searchParams = [pattern, pattern];
+    }
+
+    const dataSql = `
+    SELECT 
         id, 
         title, 
         priority, 
         details, 
         created_date, 
-        updated_date 
-      FROM tasks
-    `;
-
-    // Array of values that will replace the `?` placeholders in SQL
-    const params = [];
-
-    if (search) {
-      // Add WHERE clause only if a search term is provided
-      sql += `WHERE title LIKE ? OR details LIKE ?`;
-
-      // %term% allows partial matches in SQL LIKE
-      const pattern = `%${search}%`;
-      // These values map to the two ? placeholders above
-      params.push(pattern, pattern);
-    }
-
-    sql += `
+        updated_date,
+        completed 
+        FROM tasks
+      ${whereClause}
       ORDER BY created_date DESC
       LIMIT ? OFFSET ?
     `;
 
-    // These values replace the LIMIT ? and OFFSET ? placeholders
-    params.push(limit, offset);
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM tasks
+      ${whereClause}
+    `;
 
-    /**
-     * db.all executes the query and returns ALL matching rows.
-     *
-     * The callback is async-style:
-     *   - err is non-null if something failed
-     *   - rows is the query result if successful
-     */
-    db.all(sql, params, (err, rows) => {
-      if (err) {
-        // Rejects the Promise → caller's await throws an error
-        return reject(err);
-      }
+    // First get the total count
+    db.get(countSql, searchParams, (countErr, countRow) => {
+      if (countErr) return reject(countErr);
 
-      // Resolves the Promise → caller receives rows
-      resolve(rows);
+      const total = countRow.total;
+
+      // Then get the paginated rows
+
+      /**
+       * db.all executes the query and returns ALL matching rows.
+       *
+       * The callback is async-style:
+       *   - err is non-null if something failed
+       *   - rows is the query result if successful
+       */
+      db.all(dataSql, [...searchParams, limit, offset], (dataErr, rows) => {
+        if (dataErr) {
+          // Rejects the Promise → caller's await throws an error
+          return reject(dataErr);
+        }
+
+        // Resolves the Promise → caller receives rows
+        resolve({
+          rows,
+          total,
+        });
+      });
     });
   });
 }
@@ -70,7 +86,8 @@ export function getTaskById(id) {
           priority, 
           details, 
           created_date, 
-          updated_date 
+          updated_date,
+          completed 
         FROM tasks 
         WHERE id = ?
       `;

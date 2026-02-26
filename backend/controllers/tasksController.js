@@ -80,11 +80,12 @@ export async function getAll(req, res, next) {
     const search = parseSearch(req.query);
 
     // Fetch tasks from the database layer
-    const tasks = await getAllTasks(limit, offset, search);
+    const result = await getAllTasks(limit, offset, search);
 
     // Respond with data and pagination metadata
     res.json({
-      data: tasks,
+      data: result.rows,
+      total: result.total,
       limit,
       offset,
     });
