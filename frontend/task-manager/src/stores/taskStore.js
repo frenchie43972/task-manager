@@ -15,6 +15,8 @@ export const useTaskStore = defineStore('tasks', {
     search: '',
     limit: 10,
     offset: 0,
+    completed: null,
+    total: 0,
   }),
 
   actions: {
@@ -36,6 +38,10 @@ export const useTaskStore = defineStore('tasks', {
           offset: this.offset,
         })
 
+        if (this.completed !== null) {
+          params.append('completed', this.completed)
+        }
+
         const res = await fetch(`${API_BASE_URL}/tasks?${params}`)
 
         if (!res.ok) {
@@ -47,6 +53,7 @@ export const useTaskStore = defineStore('tasks', {
 
         // Stores only the actual task data
         this.tasks = result.data
+        this.total = result.total
       } catch (err) {
         this.error = err.message
       } finally {

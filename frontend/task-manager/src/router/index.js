@@ -15,7 +15,7 @@ const routes = [
   },
   {
     path: '/tasks/:id/edit',
-    name: 'tasks-edi',
+    name: 'tasks-edit',
     component: TaskFormView,
     props: true, // Allows rout params to be passed as props
   },

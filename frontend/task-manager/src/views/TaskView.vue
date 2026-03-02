@@ -1,37 +1,76 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import TaskList from '@/components/TaskList.vue'
 
+const route = useRoute()
+const router = useRouter()
 const taskStore = useTaskStore()
 
-const searchInput = ref(taskStore.search)
+const searchInput = ref('')
+
+function syncStoreWithRoute() {
+  taskStore.search = route.query.search || ''
+  taskStore.offset = Number(route.query.offset) || 0
+
+  if (route.query.completed === undefined) {
+    taskStore.completed = null
+  } else {
+    taskStore.completed = Number(route.query.completed)
+  }
+}
 
 onMounted(() => {
+  syncStoreWithRoute()
+  searchInput.value = taskStore.search
   taskStore.fetchTasks()
 })
 
+watch(
+  () => route.query,
+  () => {
+    syncStoreWithRoute()
+    taskStore.fetchTasks()
+  },
+)
+
+function updateRoute(queryUpdates) {
+  router.push({
+    name: 'tasks',
+    query: {
+      ...route.query,
+      ...queryUpdates,
+    },
+  })
+}
+
 function applySearch() {
-  taskStore.search = searchInput.value
-  taskStore.offset = 0
-  taskStore.fetchTasks()
+  updateRoute({
+    search: searchInput.value || undefined,
+    offset: 0,
+  })
 }
 
 function clearSearch() {
-  taskStore.search = ''
-  taskStore.offset = 0
-  taskStore.fetchTasks()
+  searchInput.value = ''
+  updateRoute({
+    search: undefined,
+    offset: 0,
+  })
 }
 
 function previousPage() {
   if (taskStore.offset === 0) return
-  taskStore.offset -= taskStore.limit
-  taskStore.fetchTasks()
+  updateRoute({
+    offset: taskStore.offset - taskStore.limit,
+  })
 }
 
 function nextPage() {
-  taskStore.offset += taskStore.limit
-  taskStore.fetchTasks()
+  updateRoute({
+    offset: taskStore.offset + taskStore.limit,
+  })
 }
 </script>
 
