@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import TaskForm from '@/components/TaskForm.vue'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
 const route = useRoute()
 const router = useRouter()
 const taskStore = useTaskStore()
@@ -19,8 +21,32 @@ const task = computed(() => {
 })
 
 onMounted(async () => {
-  if (isEditMode.value && taskStore.tasks.length === 0) {
-    await taskStore.fetchTasks()
+  if (!isEditMode.value) return
+
+  const id = Number(route.params.id)
+
+  if (!Number.isInteger(id) || id <= 0) {
+    router.replace({ name: 'tasks' })
+    return
+  }
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/tasks/${id}`)
+
+    if (!res.ok) {
+      router.replace({ name: 'tasks' })
+      return
+    }
+
+    const json = await res.json()
+
+    const exists = taskStore.tasks.find((t) => t.id === id)
+
+    if (!exists) {
+      taskStore.tasks.push(json.data)
+    }
+  } catch {
+    router.replace({ name: 'tasks' })
   }
 })
 
@@ -31,12 +57,21 @@ function handleSuccess() {
 </script>
 
 <template>
-  <div>
-    <h1 v-if="isEditMode">Edit Task</h1>
-    <h1 v-else>Create Task</h1>
+  <div class="form-page">
+    <h1>{{ isEditMode ? 'Edit Task' : 'Create Task' }}</h1>
 
     <TaskForm :task="task" :isEdit="isEditMode" @success="handleSuccess" @cancel="handleSuccess" />
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.form-page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: var(--space-lg);
+}
+
+h1 {
+  margin-bottom: var(--space-md);
+}
+</style>

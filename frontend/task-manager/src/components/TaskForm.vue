@@ -15,6 +15,51 @@ const title = ref('')
 const priority = ref('')
 const details = ref('')
 
+const formError = ref(null)
+
+function validate() {
+  if (!title.value.trim()) {
+    formError.value = 'Title is required'
+    return false
+  }
+
+  if (!priority.value) {
+    formError.value = 'Priority is required'
+    return false
+  }
+
+  formError.value = null
+  return true
+}
+
+async function handleSubmit() {
+  if (!validate()) return
+
+  try {
+    if (props.isEdit && props.task) {
+      await taskStore.updateTask(props.task.id, {
+        title: title.value,
+        priority: priority.value,
+        details: details.value,
+      })
+    } else {
+      await taskStore.createTask({
+        title: title.value,
+        priority: priority.value,
+        details: details.value,
+      })
+    }
+
+    emit('success')
+  } catch (err) {
+    formError.value = err.message || 'An unexpectd error occured'
+  }
+}
+
+function handleCancel() {
+  emit('cancel')
+}
+
 // Watch for changes to the incoming `task` prop.
 // Wrap it in a function so Vue can track it reactively.
 watch(
@@ -40,30 +85,6 @@ watch(
   // even if the prop never changes after first render.
   { immediate: true },
 )
-
-async function handleSubmit() {
-  if (!title.value || !priority.value) return
-
-  if (props.isEdit && props.task) {
-    await taskStore.updateTask(props.task.id, {
-      title: title.value,
-      priority: priority.value,
-      details: details.value,
-    })
-  } else {
-    await taskStore.createTask({
-      title: title.value,
-      priority: priority.value,
-      details: details.value,
-    })
-  }
-
-  emit('success')
-}
-
-function handleCancel() {
-  emit('cancel')
-}
 </script>
 
 <template>
@@ -79,6 +100,7 @@ function handleCancel() {
 
     <textarea v-model="details" placeholder="Task Details"></textarea>
 
+    <p v-if="formError" style="color: red">{{ formError }}</p>
     <button type="submit">
       {{ isEdit ? 'Save Edit' : 'Create Task' }}
     </button>

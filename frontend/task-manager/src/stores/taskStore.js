@@ -81,11 +81,9 @@ export const useTaskStore = defineStore('tasks', {
           throw new Error('Failed to create task')
         }
 
-        // Backend returns: {data: task}
-        const json = await res.json()
+        await res.json()
 
-        // Appends created task to the local state
-        this.tasks.push(json.data)
+        await this.fetchTasks()
       } catch (err) {
         this.error = err.message
         throw err
@@ -108,8 +106,7 @@ export const useTaskStore = defineStore('tasks', {
           throw new Error('Failed to delete task.')
         }
 
-        // Update local state after backend success
-        this.tasks = this.tasks.filter((task) => task.id !== id)
+        await this.fetchTasks()
       } catch (err) {
         this.error = err.message
         throw err
@@ -134,15 +131,9 @@ export const useTaskStore = defineStore('tasks', {
           throw new Error('Failed to update task.')
         }
 
-        // Backend returns: { data: task }
-        const json = await res.json()
+        await res.json()
 
-        // Finds and replaces the task in local state
-        const index = this.tasks.findIndex((task) => task.id === id)
-
-        if (index !== -1) {
-          this.tasks[index] = json.data
-        }
+        await this.fetchTasks()
       } catch (err) {
         this.error = err.message
         throw err
