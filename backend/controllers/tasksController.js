@@ -1,14 +1,16 @@
-import db from '../db/database.js';
+import db from "../db/database.js";
 import {
   getAllTasks,
   getTaskById,
   createTask,
   updateTaskById,
   deleteTaskById,
-} from '../db/tasks.queries.js';
+} from "../db/tasks.queries.js";
 
 // Upper bound for pagination size to prevent large queries
 const MAX_LIMIT = 50;
+
+const ALLOWED_PRIORITIES = ["High", "Medium", "Low"];
 
 /**
  * Parses and validates an ID from route params.
@@ -25,7 +27,7 @@ function parseId(raw) {
   const id = Number(raw);
 
   if (!Number.isInteger(id) || id <= 0) {
-    const err = new Error('Invalid task ID');
+    const err = new Error("Invalid task ID");
 
     err.status = 400;
     throw err;
@@ -59,12 +61,12 @@ function parsePagination(query) {
  * Guarantees a string return value.
  */
 function parseSearch(query) {
-  if (typeof query.search !== 'string') return '';
+  if (typeof query.search !== "string") return "";
 
   const trimmed = query.search.trim();
 
   // Empty strings are treated as no search
-  return trimmed === '' ? '' : trimmed;
+  return trimmed === "" ? "" : trimmed;
 }
 
 function parseCompleted(query) {
@@ -73,7 +75,7 @@ function parseCompleted(query) {
   const value = Number(query.completed);
 
   if (value !== 0 && value !== 1) {
-    const err = new Error('Invalid completed filter');
+    const err = new Error("Invalid completed filter");
 
     err.status = 400;
     throw err;
@@ -125,7 +127,7 @@ export async function getById(req, res, next) {
 
     // If no row was returned, task does not exist
     if (!task) {
-      return res.status(404).json({ err: 'Task not found.' });
+      return res.status(404).json({ err: "Task not found." });
     }
 
     res.json({ data: task });
@@ -144,19 +146,24 @@ export async function create(req, res, next) {
     const { title, priority, details } = req.body;
 
     // Input validation
-    if (typeof title !== 'string' || title.trim() === '') {
-      return res.status(400).json({ error: 'Title is required' });
+    if (typeof title !== "string" || title.trim() === "") {
+      return res.status(400).json({ error: "Title is required" });
     }
 
-    if (!priority) {
-      return res.status(400).json({ error: 'Priority is required' });
+    if (
+      typeof priority !== "string" ||
+      !ALLOWED_PRIORITIES.includes(priority)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Priority must be High, Medium, or Low" });
     }
 
     // Normalized payload sent to database layer
     const payload = {
       title: title.trim(),
       priority,
-      details: typeof details === 'string' ? details : '',
+      details: typeof details === "string" ? details : "",
     };
 
     const result = await createTask(payload);
@@ -184,7 +191,7 @@ export async function remove(req, res, next) {
     const result = await deleteTaskById(id);
 
     if (result.changes === 0) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: "Task not found" });
     }
 
     res.status(204).end();
@@ -203,25 +210,30 @@ export const update = async (req, res, next) => {
     const id = parseId(req.params.id);
     const { title, priority, details, completed } = req.body;
 
-    if (typeof title !== 'string' || title.trim() === '') {
-      return res.status(400).json({ error: 'Title is required' });
+    if (typeof title !== "string" || title.trim() === "") {
+      return res.status(400).json({ error: "Title is required" });
     }
 
-    if (!priority) {
-      return res.status(400).json({ error: 'Priority is required' });
+    if (
+      typeof priority !== "string" ||
+      !ALLOWED_PRIORITIES.includes(priority)
+    ) {
+      return res
+        .status(400)
+        .json({ error: "Priority must be High, Medium, or Low" });
     }
 
     const payload = {
       title: title.trim(),
       priority,
-      details: typeof details === 'string' ? details : '',
+      details: typeof details === "string" ? details : "",
       completed: completed ? 1 : 0,
     };
 
     const result = await updateTaskById(id, payload);
 
     if (result.changes === 0) {
-      return res.status(404).json({ error: 'Task not found' });
+      return res.status(404).json({ error: "Task not found" });
     }
 
     res.json({
