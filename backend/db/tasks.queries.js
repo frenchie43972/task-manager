@@ -1,26 +1,29 @@
-import db from "./database.js";
+import db from './database.js';
 
 /**
  * Fetches a list of tasks with optional search, pagination, and sorting.
  *
  * This function returns a Promise so callers can use `await`.
  */
-export function getAllTasks(limit, offset, search) {
+export function getAllTasks(limit, offset, search, completed) {
   return new Promise((resolve, reject) => {
-    let whereClause = "";
-
-    // Array of values that will replace the `?` placeholders in SQL
-    let searchParams = [];
+    const conditions = [];
+    const params = [];
 
     if (search) {
-      // Add WHERE clause only if a search term is provided
-      whereClause = `WHERE title LIKE ? OR details LIKE ?`;
+      conditions.push(`(title LIKE ? OR details LIKE ?)`);
 
-      // %term% allows partial matches in SQL LIKE
       const pattern = `%${search}%`;
-      // These values map to the two ? placeholders above
-      searchParams = [pattern, pattern];
+      params.push(pattern, pattern);
     }
+
+    if (completed !== null) {
+      conditions.push(`completed = ?`);
+      params.push(completed);
+    }
+
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const dataSql = `
     SELECT 
@@ -44,7 +47,7 @@ export function getAllTasks(limit, offset, search) {
     `;
 
     // First get the total count
-    db.get(countSql, searchParams, (countErr, countRow) => {
+    db.get(countSql, params, (countErr, countRow) => {
       if (countErr) return reject(countErr);
 
       const total = countRow.total;
@@ -58,11 +61,8 @@ export function getAllTasks(limit, offset, search) {
        *   - err is non-null if something failed
        *   - rows is the query result if successful
        */
-      db.all(dataSql, [...searchParams, limit, offset], (dataErr, rows) => {
-        if (dataErr) {
-          // Rejects the Promise → caller's await throws an error
-          return reject(dataErr);
-        }
+      db.all(dataSql, [...params, limit, offset], (dataErr, rows) => {
+        if (dataErr) return reject(dataErr);
 
         // Resolves the Promise → caller receives rows
         resolve({
@@ -153,16 +153,20 @@ export function deleteTaskById(id) {
 /**
  * Updates an existing task by ID.
  */
-export function updateTaskById(id, { title, priority, details }) {
+export function updateTaskById(id, { title, priority, details, completed }) {
   return new Promise((resolve, reject) => {
     const sql = `
       UPDATE tasks
-      SET title = ?, priority = ?, details = ?, updated_date = CURRENT_TIMESTAMP
+      SET title = ?, 
+        priority = ?, 
+        details = ?, 
+        completed = ?,
+        updated_date = CURRENT_TIMESTAMP
       WHERE id = ?
     `;
 
     // Order matters: values match the ? placeholders top to bottom
-    const params = [title, priority, details, id];
+    const params = [title, priority, details, completed, id];
 
     db.run(sql, params, function (err) {
       if (err) {

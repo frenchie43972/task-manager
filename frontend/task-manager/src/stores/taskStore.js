@@ -15,6 +15,7 @@ export const useTaskStore = defineStore('tasks', {
     search: '',
     limit: 10,
     offset: 0,
+    completed: null,
     total: 0,
   }),
 
@@ -36,6 +37,10 @@ export const useTaskStore = defineStore('tasks', {
           limit: this.limit,
           offset: this.offset,
         })
+
+        if (this.completed !== null) {
+          params.append('completed', this.completed)
+        }
 
         const res = await fetch(`${API_BASE_URL}/tasks?${params}`)
 

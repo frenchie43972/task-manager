@@ -18,12 +18,28 @@ function goToEdit() {
     params: { id: task.id },
   })
 }
+
+async function toggleCompleted() {
+  const isCompleted = task.completed === 1 ? 0 : 1
+
+  await taskStore.updateTask(task.id, {
+    title: task.title,
+    priority: task.priority,
+    details: task.details,
+    completed: isCompleted,
+  })
+}
 </script>
 
 <template>
   <li>
     <div>
-      <h3>{{ task.title }}</h3>
+      <input type="checkbox" :checked="task.completed === 1" @change="toggleCompleted" />
+
+      <h3 :style="{ textDecoration: task.completed === 1 ? 'line-through' : 'none' }">
+        {{ task.title }}
+      </h3>
+
       <p>{{ task.priority }}</p>
       <p>{{ task.details }}</p>
 

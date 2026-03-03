@@ -4,58 +4,72 @@ import { useRoute, useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import TaskList from '@/components/TaskList.vue'
 
-const taskStore = useTaskStore()
-
 const route = useRoute()
 const router = useRouter()
+const taskStore = useTaskStore()
 
-const searchInput = ref(taskStore.search)
+const searchInput = ref('')
 
-function applySearch() {
+function syncStoreWithRoute() {
+  taskStore.search = route.query.search || ''
+  taskStore.offset = Number(route.query.offset) || 0
+
+  if (route.query.completed === undefined) {
+    taskStore.completed = null
+  } else {
+    taskStore.completed = Number(route.query.completed)
+  }
+}
+
+onMounted(() => {
+  syncStoreWithRoute()
+  searchInput.value = taskStore.search
+  taskStore.fetchTasks()
+})
+
+watch(
+  () => route.query,
+  () => {
+    syncStoreWithRoute()
+    taskStore.fetchTasks()
+  },
+)
+
+function updateRoute(queryUpdates) {
   router.push({
+    name: 'tasks',
     query: {
       ...route.query,
-      search: searchInput.value,
-      offset: 0,
-      limit: taskStore.limit,
+      ...queryUpdates,
     },
+  })
+}
+
+function applySearch() {
+  updateRoute({
+    search: searchInput.value || undefined,
+    offset: 0,
   })
 }
 
 function clearSearch() {
   searchInput.value = ''
-  taskStore.search = ''
-  taskStore.offset = 0
-  taskStore.fetchTasks()
+  updateRoute({
+    search: undefined,
+    offset: 0,
+  })
 }
 
 function previousPage() {
-  const prevOffset = taskStore.offset - taskStore.limit
-
-  if (prevOffset < 0) return
-
-  router.push({
-    query: {
-      ...route.query,
-      offset: prevOffset,
-      limit: taskStore.limit,
-      search: taskStore.search,
-    },
+  if (taskStore.offset === 0) return
+  updateRoute({
+    offset: taskStore.offset - taskStore.limit,
   })
 }
 
 function nextPage() {
-  const nextOffset = taskStore.offset + taskStore.limit
-
-  if (nextOffset >= taskStore.total) return
-
-  router.push({
-    query: {
-      ...route.query,
-      offset: nextOffset,
-      limit: taskStore.limit,
-      search: taskStore.search,
-    },
+  updateRoute({
+    offset: taskStore.offset + taskStore.limit,
   })
 }
 
