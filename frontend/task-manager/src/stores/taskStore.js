@@ -15,6 +15,7 @@ export const useTaskStore = defineStore('tasks', {
     search: '',
     limit: 10,
     offset: 0,
+    total: 0,
   }),
 
   actions: {
@@ -47,6 +48,7 @@ export const useTaskStore = defineStore('tasks', {
 
         // Stores only the actual task data
         this.tasks = result.data
+        this.total = result.total
       } catch (err) {
         this.error = err.message
       } finally {
@@ -78,7 +80,7 @@ export const useTaskStore = defineStore('tasks', {
         const json = await res.json()
 
         // Appends created task to the local state
-        this.tasks.push(json)
+        this.tasks.push(json.data)
       } catch (err) {
         this.error = err.message
         throw err

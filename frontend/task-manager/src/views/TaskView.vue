@@ -1,38 +1,89 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore'
 import TaskList from '@/components/TaskList.vue'
 
 const taskStore = useTaskStore()
 
+const route = useRoute()
+const router = useRouter()
+
 const searchInput = ref(taskStore.search)
 
-onMounted(() => {
-  taskStore.fetchTasks()
-})
-
 function applySearch() {
-  taskStore.search = searchInput.value
-  taskStore.offset = 0
-  taskStore.fetchTasks()
+  router.push({
+    query: {
+      ...route.query,
+      search: searchInput.value,
+      offset: 0,
+      limit: taskStore.limit,
+    },
+  })
 }
 
 function clearSearch() {
+  searchInput.value = ''
   taskStore.search = ''
   taskStore.offset = 0
   taskStore.fetchTasks()
 }
 
 function previousPage() {
-  if (taskStore.offset === 0) return
-  taskStore.offset -= taskStore.limit
-  taskStore.fetchTasks()
+  const prevOffset = taskStore.offset - taskStore.limit
+
+  if (prevOffset < 0) return
+
+  router.push({
+    query: {
+      ...route.query,
+      offset: prevOffset,
+      limit: taskStore.limit,
+      search: taskStore.search,
+    },
+  })
 }
 
 function nextPage() {
-  taskStore.offset += taskStore.limit
-  taskStore.fetchTasks()
+  const nextOffset = taskStore.offset + taskStore.limit
+
+  if (nextOffset >= taskStore.total) return
+
+  router.push({
+    query: {
+      ...route.query,
+      offset: nextOffset,
+      limit: taskStore.limit,
+      search: taskStore.search,
+    },
+  })
 }
+
+watch(
+  () => route.query,
+  (query) => {
+    taskStore.search = query.search || ''
+    taskStore.limit = Number(query.limit) || 10
+    taskStore.offset = Number(query.offset) || 0
+
+    searchInput.value = taskStore.search
+
+    taskStore.fetchTasks()
+  },
+  { immediate: true },
+)
+
+// onMounted(() => {
+//   const { search = '', limit = 10, offset = 0 } = route.query
+
+//   taskStore.search = search
+//   taskStore.limit = Number(limit)
+//   taskStore.offset = Number(offset)
+
+//   searchInput.value = search
+
+//   taskStore.fetchTasks()
+// })
 </script>
 
 <template>
@@ -49,7 +100,9 @@ function nextPage() {
 
     <TaskList />
     <button @click="previousPage" :disabled="taskStore.offset === 0">Previous</button>
-    <button @click="nextPage">Next</button>
+    <button @click="nextPage" :disabled="taskStore.offset + taskStore.limit >= taskStore.total">
+      Next
+    </button>
   </div>
 </template>
 
