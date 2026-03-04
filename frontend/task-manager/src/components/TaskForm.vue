@@ -88,24 +88,74 @@ watch(
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit">
-    <input v-model="title" placeholder="Title" />
+  <form class="task-form" @submit.prevent="handleSubmit">
+    <div class="field">
+      <label>Title</label>
+      <input v-model="title" placeholder="Title" />
+    </div>
 
-    <select v-model="priority">
-      <option value="" disabled="">Select Priority</option>
-      <option value="High">High</option>
-      <option value="Medium">Medium</option>
-      <option value="Low">Low</option>
-    </select>
+    <div class="field">
+      <label>Priority</label>
+      <select v-model="priority">
+        <option value="" disabled>Select Priority</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+    </div>
 
-    <textarea v-model="details" placeholder="Task Details"></textarea>
+    <div class="field">
+      <label>Details</label>
+      <textarea v-model="details" placeholder="Task Details"></textarea>
+    </div>
 
-    <p v-if="formError" style="color: red">{{ formError }}</p>
-    <button type="submit">
-      {{ isEdit ? 'Save Edit' : 'Create Task' }}
-    </button>
-    <button @click="handleCancel">Cancel</button>
+    <p v-if="formError" class="error">{{ formError }}</p>
+
+    <div class="actions">
+      <button type="submit" class="primary">
+        {{ isEdit ? 'Save Edit' : 'Create Task' }}
+      </button>
+      <button type="button" @click="handleCancel">Cancel</button>
+    </div>
   </form>
 </template>
 
-<style scoped></style>
+<style scoped>
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  background: var(--color-surface);
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+</style>
