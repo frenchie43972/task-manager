@@ -1,7 +1,31 @@
 <script setup>
+/**
+ * File: TaskItem.vue
+ *
+ * Purpose:
+ * Reusable UI component that displays a single task inside the task list.
+ *
+ * Responsibilities:
+ * - Display task information (title, priority, details)
+ * - Allow user interactions:
+ *    - toggle completion
+ *    - edit task
+ *    - delete task
+ *
+ * Concept: Component Props
+ *
+ * Props allow parent components to pass data into a child component.
+ * Here the parent view passes a single task object.
+ */
 import { useRouter } from 'vue-router'
 import { useTaskStore } from '@/stores/taskStore.js'
 
+/**
+ * defineProps is part of Vue's <script setup> syntax.
+ *
+ * It declares the props the component expects.
+ * In this case we require a task object.
+ */
 const { task } = defineProps({
   task: {
     type: Object,
@@ -12,6 +36,11 @@ const { task } = defineProps({
 const router = useRouter()
 const taskStore = useTaskStore()
 
+/**
+ * Navigate to the edit page for the task.
+ *
+ * Uses named route navigation instead of hardcoding a path.
+ */
 function goToEdit() {
   router.push({
     name: 'tasks-edit',
@@ -29,9 +58,21 @@ async function handleDelete() {
   await taskStore.deleteTask(task.id)
 }
 
+/**
+ * Toggle the completed state of the task.
+ *
+ * Backend stores completed as:
+ *   1 → completed
+ *   0 → not completed
+ */
 async function toggleCompleted() {
   const isCompleted = task.completed === 1 ? 0 : 1
 
+  /**
+   * Update task using the store action.
+   * All fields are sent because the backend PUT endpoint
+   * expects a full task update.
+   */
   await taskStore.updateTask(task.id, {
     title: task.title,
     priority: task.priority,
@@ -44,7 +85,15 @@ async function toggleCompleted() {
 <template>
   <li class="card">
     <div class="card-header">
+      <!-- Checkbox toggles completion state -->
       <input type="checkbox" :checked="task.completed === 1" @change="toggleCompleted" />
+
+      <!--
+        Conditional class binding.
+
+        If task.completed === 1
+        the "completed" class is applied.
+      -->
       <h3 :class="{ completed: task.completed === 1 }">
         {{ task.title }}
       </h3>
@@ -63,6 +112,11 @@ async function toggleCompleted() {
 </template>
 
 <style scoped>
+/**
+ * Card container for each task.
+ *
+ * Flexbox is used to stack content vertically.
+ */
 .card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -86,6 +140,9 @@ async function toggleCompleted() {
   font-size: 1rem;
 }
 
+/**
+ * Applied when a task is marked complete.
+ */
 .completed {
   text-decoration: line-through;
   color: var(--color-muted);
@@ -109,6 +166,9 @@ async function toggleCompleted() {
 
 .card-actions {
   display: flex;
+  /**
+   * Push buttons apart horizontally.
+   */
   justify-content: space-between;
   gap: var(--space-sm);
 }

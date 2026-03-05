@@ -1,22 +1,57 @@
 <script setup>
+/**
+ * File: TaskForm.vue
+ *
+ * Purpose:
+ * Reusable form component used for both creating and editing tasks.
+ *
+ * Behavior:
+ * - When `isEdit` is false → creates a new task
+ * - When `isEdit` is true  → updates an existing task
+ *
+ * Concept: Reusable Form Component
+ *
+ * Instead of creating separate forms for "create" and "edit",
+ * one component handles both cases using props.
+ */
 import { ref, watch } from 'vue'
 import { useTaskStore } from '@/stores/taskStore'
 
+/**
+ * Props received from the parent view.
+ *
+ * task  → task object when editing
+ * isEdit → boolean flag indicating edit mode
+ */
 const props = defineProps({
   task: Object,
   isEdit: Boolean,
 })
 
+/**
+ * Component events that can be emitted to the parent.
+ *
+ * success → form completed successfully
+ * cancel  → user cancelled the form
+ */
 const emit = defineEmits(['success', 'cancel'])
 
 const taskStore = useTaskStore()
 
+/**
+ * Reactive form fields.
+ *
+ * ref() creates reactive values that update the UI automatically.
+ */
 const title = ref('')
 const priority = ref('')
 const details = ref('')
 
 const formError = ref(null)
 
+/**
+ * Basic client-side validation before submitting.
+ */
 function validate() {
   if (!title.value.trim()) {
     formError.value = 'Title is required'
@@ -32,6 +67,12 @@ function validate() {
   return true
 }
 
+/**
+ * Handles form submission.
+ *
+ * Determines whether to create or update a task
+ * based on the isEdit prop.
+ */
 async function handleSubmit() {
   if (!validate()) return
 
@@ -56,41 +97,73 @@ async function handleSubmit() {
   }
 }
 
+/**
+ * Cancel button handler.
+ *
+ * Emits cancel event so parent view can decide
+ * how to handle navigation or UI changes.
+ */
 function handleCancel() {
   emit('cancel')
 }
 
-// Watch for changes to the incoming `task` prop.
-// Wrap it in a function so Vue can track it reactively.
+/**
+ * Watch for changes to the incoming `task` prop.
+ *
+ * Concept: Watchers
+ *
+ * A watcher allows the component to react when
+ * reactive data changes.
+ *
+ * Here it ensures the form fields stay synced
+ * when the parent provides a different task.
+ */
 watch(
   () => props.task,
-  // This callback runs whenever `props.task` changes.
-  // `newTask` is the updated value of the prop.
+  /**
+   * This callback runs whenever props.task changes.
+   */
   (newTask) => {
-    // Guard clause: only run if a task object exists.
-    // Prevents errors if the prop is null/undefined.
+    /**
+     * Guard clause ensures a task object exists.
+     */
     if (newTask) {
-      // Sync the incoming prop data into local refs.
-      // Copy values instead of mutating the prop directly.
-      // (Props are read-only in Vue and should not be modified.)
+      /**
+       * Copy values into local refs.
+       *
+       * Props are read-only in Vue, so we copy values
+       * instead of modifying the prop directly.
+       */
       title.value = newTask.title
       priority.value = newTask.priority
-      // Use nullish coalescing to ensure `details` is always a string.
-      // If `newTask.details` is null or undefined, default to ''.
+      /**
+       * Nullish coalescing (??)
+       *
+       * Ensures details is always a string.
+       */
       details.value = newTask.details ?? ''
     }
   },
-  // `immediate: true` forces this watcher to run once on component mount.
-  // This ensures local state is initialized from the prop
-  // even if the prop never changes after first render.
+  /**
+   * immediate: true means the watcher runs
+   * once when the component is first mounted.
+   */
   { immediate: true },
 )
 </script>
 
 <template>
+  <!--
+    Form submission uses @submit.prevent to stop
+    the browser from refreshing the page.
+  -->
   <form class="task-form" @submit.prevent="handleSubmit">
     <div class="field">
       <label>Title</label>
+      <!--
+        v-model creates two-way binding between
+        input value and the reactive ref.
+      -->
       <input v-model="title" placeholder="Title" />
     </div>
 
@@ -109,9 +182,13 @@ watch(
       <textarea v-model="details" placeholder="Task Details"></textarea>
     </div>
 
+    <!-- Display form error if validation fails -->
     <p v-if="formError" class="error">{{ formError }}</p>
 
     <div class="actions">
+      <!--
+        Button label changes depending on mode.
+      -->
       <button type="submit" class="primary">
         {{ isEdit ? 'Save Edit' : 'Create Task' }}
       </button>
@@ -121,6 +198,9 @@ watch(
 </template>
 
 <style scoped>
+/**
+ * Container styling for the form.
+ */
 .task-form {
   display: flex;
   flex-direction: column;
@@ -131,6 +211,11 @@ watch(
   border-radius: var(--radius);
 }
 
+/**
+ * Field group layout.
+ *
+ * Flex column stacks label + input vertically.
+ */
 .field {
   display: flex;
   flex-direction: column;
@@ -142,8 +227,13 @@ label {
   font-weight: 600;
 }
 
+/**
+ * Textarea sizing.
+ *
+ * resize: vertical allows height adjustment only vertically.
+ */
 textarea {
-  min-height: 100px;
+  min-height: 250px;
   resize: vertical;
 }
 

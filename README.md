@@ -1,211 +1,303 @@
-# Task Manager – Full Architectural Evolution and Design Narrative
+# Task Manager (Full-Stack Template)
 
-## Why This Document Exists
+A small full-stack task management application built with **Vue 3, Express, and SQLite**.  
+This project demonstrates a **clean architectural structure** that can be reused as a template for future projects.
 
-This document captures the complete architectural journey of the application. It explains how the project evolved from a basic CRUD implementation into a layered, route-driven, migration-based system with hardened validation and authoritative data flow.
+The application supports:
 
-The purpose of this document is long-term clarity. If this repository is revisited months or years from now, this narrative should explain not only what the system does, but why it is structured the way it is. It is intended to serve as both architectural documentation and a personal development record.
+- Creating tasks
+- Editing tasks
+- Deleting tasks
+- Marking tasks as completed
+- Searching and filtering tasks
+- Paginated task lists
 
-# The Original Application State
+The focus of this repository is **structure, clarity, and maintainability**, not feature complexity.
 
-The project began as a straightforward CRUD learning exercise built with Vue (Composition API), Express, and SQLite.
+---
 
-The backend exposed working endpoints. The frontend could create, update, and delete tasks. The database persisted data correctly. From a surface perspective, the application functioned.
+# Tech Stack
 
-On the backend, the database module both opened the SQLite connection and executed schema logic. Controllers passed route parameters directly to query functions without strict coercion. SQLite implicitly coerced types, meaning invalid IDs could behave unpredictably. Response shapes were inconsistent across endpoints. Filtering and pagination existed but were not normalized as a formal contract.
+## Frontend
 
-On the frontend, everything rendered inside `App.vue`. There was no router. Editing occurred inline within list items. The store performed fetch calls but components were still aware of response structures. Application state was internal to components rather than represented in the URL.
+- Vue 3 (Composition API)
+- Pinia (state management)
+- Vue Router
+- Vite
 
-The system worked, but it was fragile and not reusable as a structural template.
+## Backend
 
-The first architectural decision was to stabilize structure before adding complexity.
+- Node.js
+- Express
 
-# Phase 1 – Backend Architectural Stabilization
+## Database
 
-The backend refactor focused on layering, input normalization, lifecycle clarity, and contract stability.
+- SQLite
+- SQL migrations
 
-## Controller Normalization and Input Validation
+---
 
-Controllers were rewritten to explicitly parse and validate route parameters and query values. IDs are now coerced using `Number()` and validated as positive integers. Pagination parameters are bounded and normalized before reaching SQL. Invalid values are rejected early with appropriate HTTP status codes.
+# Project Structure
 
-This eliminated implicit type coercion and made controller logic deterministic.
+```
+project-root
+│
+├─ backend
+│   ├─ controllers
+│   ├─ db
+│   │   ├─ migrations
+│   │   └─ queries
+│   ├─ middleware
+│   ├─ routes
+│   └─ server.js
+│
+├─ frontend
+│   ├─ components
+│   ├─ stores
+│   ├─ views
+│   ├─ router
+│   └─ main.js
+│
+└─ README.md
+```
 
-At the same time, responses were standardized. Successful responses are now consistently wrapped in a predictable envelope structure:
+The structure separates responsibilities clearly across the stack.
 
-List endpoints additionally include pagination metadata such as total, limit, and offset.
+---
 
-This established a stable API contract. Controllers now own HTTP semantics and validation. Query modules own data access. The frontend no longer guesses response shapes.
+# Architecture Overview
 
-This was the first reinforcement of strict layering discipline.
+## Backend Layers
 
-SQL-Level Filtering and Pagination
+```
+Routes → Controllers → Queries → Database
+```
 
-Filtering and pagination were clarified as database responsibilities.
+**Routes**
 
-Search is implemented using SQL WHERE clauses. Pagination uses LIMIT and OFFSET. Total row counts are computed using COUNT(\*) with matching filter conditions.
+Define API endpoints.
 
-Controllers do not re-filter result sets after retrieval. JavaScript does not manipulate row inclusion logic.
+**Controllers**
 
-This reinforced a foundational principle: the database determines which rows exist in a result set. The application layer does not simulate filtering after the fact. This preserves scalability and separation of concerns.
+Handle request validation, input parsing, and HTTP responses.
 
-Separating Startup Lifecycle from Runtime Logic
+**Queries**
 
-Originally, schema execution occurred inside the database initialization module. Importing the database module could trigger schema side effects.
+Contain SQL logic and interact with the database.
 
-This was refactored into an explicit startup lifecycle.
+**Database**
 
-The application now follows a deterministic boot sequence:
+Initializes the SQLite connection and runs migrations.
 
-Introducing a Lightweight Migration System
+---
 
-The original schema.sql file was replaced with a structured migrations directory. Each migration file represents a discrete schema change. A migrations table tracks which migrations have been applied.
+## Frontend Layers
 
-This allows the schema to evolve incrementally and reproducibly. Database state is now versioned and deterministic. No manual schema setup is required.
+```
+Views → Components → Store → API
+```
 
-At this point, the backend achieved structural maturity. It was layered, deterministic at startup, and contract-stable.
+**Views**
 
-Phase 2 – Frontend Structural Refactor
+Page-level components tied to routes.
 
-With the backend stabilized, the frontend was refactored to mirror the same architectural discipline.
+**Components**
 
-The guiding principle remained the same: stabilize structure before expanding features.
+Reusable UI pieces (lists, items, forms).
 
-Store as the Single IO Boundary
+**Store**
 
-The Pinia store was refactored to fully own API communication.
+The Pinia store is the **single place where API communication occurs**.
 
-The store now:
+Components interact with the store rather than calling the API directly.
 
-Performs all fetch calls.
+---
 
-Parses envelope responses.
+# Routing
 
-Manages loading and error state.
+The frontend uses **Vue Router** for navigation.
 
-Updates internal state consistently.
+Routes include:
 
-Owns query parameters such as search, offset, limit, and lifecycle filter.
+```
+/                → Task list
+/tasks/new       → Create task
+/tasks/:id/edit  → Edit task
+```
 
-Components no longer access raw HTTP responses. They consume only store state and call store actions.
+Search, filters, and pagination are stored in **URL query parameters** so the page state persists across refreshes.
 
-This established a clean IO boundary. The store acquires data. Components render data.
+Example:
 
-Introducing Vue Router and Route-Driven State
+```
+/?search=test&completed=1&offset=10
+```
 
-Routing was introduced with explicit named routes:
+---
 
-/ for task listing.
+# Database Migrations
 
-/tasks/new for task creation.
+The database schema is managed using SQL migration files.
 
-/tasks/:id/edit for editing.
+Example:
 
-App.vue was simplified to render only <router-view />.
+```
+backend/db/migrations
+  001_create_tasks_table.sql
+  002_add_completed_column.sql
+```
 
-This shifted the application from internal component state to route-driven state. The URL now represents UI state. Editing survives refresh. Views are bookmarkable. Navigation is explicit.
+When the backend starts, it automatically:
 
-List behavior was also made route-driven. Search, pagination, and lifecycle filtering are represented in the query string. The route becomes the canonical source of list state. The store synchronizes with the route and fetches data accordingly.
+1. Creates the migrations tracking table
+2. Applies any migrations that have not yet run
 
-This eliminated duplicated state and ensured refresh persistence.
+This ensures the database schema stays consistent across environments.
 
-Separation of Page, Collection, and Item Responsibilities
+---
 
-The original monolithic list component was decomposed into distinct layers:
+# Data Flow
 
-TaskView became the page-level component responsible for syncing route state and triggering fetch operations.
+### Fetching Tasks
 
-TaskList became responsible only for rendering a collection of tasks.
+```
+Route change
+     ↓
+View updates store query state
+     ↓
+Store fetches tasks from API
+     ↓
+Components render results
+```
 
-TaskItem became responsible only for rendering a single task and emitting user interaction intent.
+### Creating / Updating / Deleting Tasks
 
-Fetching occurs only at the page layer. Collection components do not trigger side effects. Nested loops and duplicate fetch calls were eliminated.
+```
+Component action
+     ↓
+Store sends API request
+     ↓
+Backend updates database
+     ↓
+Store refetches tasks
+```
 
-Each component now has a single responsibility.
+Refetching ensures pagination and filters remain accurate.
 
-Route-Driven Create and Edit
+---
 
-Inline editing was removed. Editing became route-driven.
+# Getting Started
 
-The Create button navigates to /tasks/new. The Edit button navigates to /tasks/:id/edit.
+## 1. Clone the repository
 
-TaskFormView determines mode based on route parameters. TaskForm is a reusable component that receives props and emits events. It does not control navigation directly.
+```
+git clone https://github.com/your-username/task-manager-template.git
+cd task-manager-template
+```
 
-Navigation logic lives in the view layer. Form logic lives in the form component. Store logic lives in the store.
+---
 
-This mirrored backend layering discipline on the frontend.
+## 2. Start the backend
 
-Phase 3 – Domain Hardening and Behavioral Maturity
+```
+cd backend
+npm install
+npm run dev
+```
 
-After structural layering was complete, the system was hardened to behave predictably under real-world conditions.
+Server runs on:
 
-Lifecycle Modeling and Filtering
+```
+http://localhost:3000
+```
 
-A completed flag was introduced via migration to model task lifecycle state. Filtering by lifecycle was implemented at the SQL level and integrated into route query parameters.
+---
 
-The list supports three states: all tasks, active tasks, and completed tasks. Filtering is handled by the backend. Pagination counts remain accurate under filtering.
+## 3. Start the frontend
 
-Lifecycle toggling uses authoritative refetching to ensure filtered views remain consistent.
+```
+cd frontend
+npm install
+npm run dev
+```
 
-Authoritative Mutations
+Frontend runs on:
 
-Create, update, and delete operations were refactored to refetch list data after mutation instead of mutating local arrays optimistically.
+```
+http://localhost:5173
+```
 
-This ensures:
+---
 
-Pagination metadata remains correct.
+# Environment Variables
 
-Filtering remains accurate.
+Create a `.env` file in the **frontend** directory:
 
-Total counts remain aligned with backend truth.
+```
+VITE_API_BASE_URL=http://localhost:3000
+```
 
-Edge cases are minimized.
+---
 
-The backend remains the source of truth for all list state.
+# Validation
 
-Defensive Pagination
+**Backend validation**
 
-If a route contains an invalid or stale offset, the system detects when offset >= total and computes the last valid page offset. The route is updated automatically, and data is refetched.
+- Task IDs must be positive integers
+- Priority must be:
+  - High
+  - Medium
+  - Low
 
-This prevents empty pages caused by manual URL edits or state drift.
+**Frontend validation**
 
-Strict Domain Validation
+- Prevents empty form submissions
+- Displays backend error messages
 
-Backend validation was hardened to enforce strict priority values. Only "High", "Medium", and "Low" are accepted. Invalid values result in 400 responses.
+The backend remains the **source of truth** for validation.
 
-Frontend validation prevents blank submissions and surfaces backend error messages. Delete actions require confirmation.
+---
 
-Domain integrity is enforced at the backend. The frontend enhances usability but does not replace backend authority.
+# Key Design Principles
 
-Edit Route Existence Validation
+This project follows a few simple principles:
 
-Navigating to /tasks/:id/edit now validates the ID and confirms existence via a backend fetch. Invalid or nonexistent IDs redirect to the list view.
+**Layered architecture**
 
-The frontend does not assume resource existence based solely on route parameters.
+Each part of the system has a clear responsibility.
 
-Current Architectural State
+**Centralized API access**
 
-The system now follows consistent structural principles across backend and frontend.
+All HTTP requests go through the Pinia store.
 
-On the backend, controllers are thin and validated. Queries are isolated. Migrations handle schema evolution. Startup lifecycle is explicit. Response envelopes are consistent. Domain validation is strict.
+**Route-driven UI state**
 
-On the frontend, routes represent UI state. The store owns all data acquisition. Pages synchronize route state and trigger fetches. Collection and item components are purely presentational. Forms are reusable and emit events. Mutations are authoritative.
+Search filters and pagination are stored in the URL.
 
-The application is layered, predictable, and reusable as a full-stack template.
+**Database migrations**
 
-Development Model for Future Projects
+Schema changes are tracked and applied automatically.
 
-This project now serves as a structured development template.
+**Backend authority**
 
-Future projects should begin with minimal working CRUD functionality. Once functionality works, backend layering should be stabilized. Migrations should be introduced early. API contracts should be normalized. Routing should represent UI state before adding interface complexity. IO boundaries should be centralized in the store. Only after structure is stable should feature complexity expand.
+The frontend refetches data after mutations rather than modifying local state.
 
-The core principle reinforced throughout this evolution is simple:
+---
 
-Stabilize structure first. Expand functionality second.
+# Using This as a Template
 
-Conclusion
+When starting a new project with this template:
 
-This project evolved from a functional CRUD application into a layered, route-driven, migration-based system through deliberate structural refactoring.
+1. Implement basic CRUD functionality.
+2. Keep backend layers separate.
+3. Add database changes through migrations.
+4. Centralize API calls in the store.
+5. Represent UI state in routes.
 
-Every major change reinforced separation of concerns, explicit lifecycle management, IO boundary ownership, route-driven UI state, and backend-authoritative validation.
+This structure scales well as applications grow.
 
-The result is a small but architecturally mature application suitable as a template for future projects and as a documented milestone in architectural progression.
+---
+
+# License
+
+MIT License

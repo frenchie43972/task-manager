@@ -1,3 +1,20 @@
+/**
+ * File: main.css
+ *
+ * Purpose:
+ * Global styles and design tokens for the application.
+ *
+ * Concept: CSS Variables (Design Tokens)
+ *
+ * The variables defined in :root act as reusable values for colors,
+ * spacing, and border radius across the entire application.
+ *
+ * Benefits:
+ * - Keeps styling consistent
+ * - Makes theme changes easy (change value once)
+ * - Avoids repeating raw values everywhere
+ */
+
 :root {
   --color-bg: #f8f9fa;
   --color-surface: #ffffff;
@@ -9,6 +26,15 @@
 
   --radius: 6px;
 
+  /**
+   * Spacing scale.
+   *
+   * These variables standardize padding/margin spacing
+   * across the application.
+   *
+   * rem units scale relative to the root font size,
+   * which improves accessibility and responsive behavior.
+   */
   --space-xs: 0.25rem;
   --space-sm: 0.5rem;
   --space-md: 1rem;
@@ -21,6 +47,13 @@
 
 body {
   margin: 0;
+
+  /**
+   * System font stack.
+   *
+   * Uses the user's operating system fonts for better
+   * performance and a native look.
+   */
   font-family:
     system-ui,
     -apple-system,
@@ -55,6 +88,10 @@ textarea {
   font-size: 0.9rem;
 }
 
+/**
+ * Remove default top margin so headings
+ * align better with container layouts.
+ */
 h1 {
   margin-top: 0;
 }
